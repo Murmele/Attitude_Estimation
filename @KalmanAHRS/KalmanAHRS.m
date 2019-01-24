@@ -50,15 +50,16 @@ classdef KalmanAHRS < handle
             
             % Propagated value from previous step
             betakm = obj.bias;
-            qkm = obj.Quaternion;
+            qkm = [1;0;0;0]; %obj.Quaternion;
             Pkm = obj.P;
-            deltaXkm = zeros(6,1);
+            deltaXkm = zeros(6,1); % reset, aber alle Zustände nicht nur die der Lage
             
            % Compute attitude matrix
-            Akm = quatToAtt(qkm);
+            Akm = quatToAtt(qkm); % body to earth rotation
             
             %% Correction (measurement update)
-            for i = 1:1:2
+            % warum ist measurement update vor dem prediction?
+            for i = 1:1:2 % wieso zwei stufen?
                 if i == 1
                     % Reference direction of Earth's gravitational field
                     r_acc = [ 0  ;
@@ -78,18 +79,20 @@ classdef KalmanAHRS < handle
                     Kk = (Pkm * Hk')/(Hk * Pkm * Hk' + R);
                     
                     % Update Covariance
+                    % komische Berechnung der Kovarianzmatrix
                     Pkp = (I6 - Kk * Hk) * Pkm * (I6 - Kk * Hk)' + Kk * R * Kk';
                     
                     % Update state
-                    epk = b - Aqmr;
-                    yk = epk - Hk * deltaXkm;
+                    epk = b - Aqmr; % gemessener Wert minus Schätzwert mit Lage
+                    % Gleichung 50 in [Markley2003] (h(v_b) = hat(h)+H_a*a)
+                    yk = epk - Hk * deltaXkm; % delta y_k = delta y - delta hat(y); delta hat(y) = Hk*deltaXkm
                     deltaXkp = (deltaXkm + Kk * yk);
                     
                     Pkm = Pkp;
                     deltaXkm = deltaXkp;
                     
                 elseif i == 2
-                    % Reference direction of Earth's magnetic feild
+                    % Reference direction of Earth's magnetic field
                     h = Akm' * Magnetometer;
                     r_mag = [sqrt(h(1)^2 + h(2)^2) ;
                                       0            ;
@@ -119,8 +122,8 @@ classdef KalmanAHRS < handle
                 % Update quaternion
                 dalphak = deltaXkp(1:3,1);
                 norm_dalphak_sq = dalphak(1)^2 + dalphak(2)^2 + dalphak(3)^2;
-                dq = (1/sqrt(4+norm_dalphak_sq))*[dalphak' 2]';
-                qkp = quatProd( dq, qkm );
+                dq = (1/sqrt(4+norm_dalphak_sq))*[dalphak' 2]'; % unterschiedliche Definitionen von a
+                qkp = quatProd( dq, qkm ); % Berechnung von der Lage
                 
                 % Update biases
                 deltaBeta = deltaXkp(4:6,1);
@@ -128,6 +131,9 @@ classdef KalmanAHRS < handle
                 
                 obj.dalpha = obj.dalpha + dalphak;
             end
+            % wieso ist hier noch nicht fertig?
+            % Beim normalen Kalmanfilter wird dieser Schritt vorher
+            % ausgeführt.
             
             % Depolarize bias from Gyroscope
             omekhat = Gyroscope - betakp;
@@ -154,6 +160,7 @@ classdef KalmanAHRS < handle
             obj.bias = betakp;
             obj.P = Pk;
         end   
+        % Same function like above
         function obj = UpdateIMU(obj, Gyroscope, Accelerometer)
             % Constant parameters renamed for simplicity
             I3 = eye(3);
