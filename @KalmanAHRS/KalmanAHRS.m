@@ -55,11 +55,11 @@ classdef KalmanAHRS < handle
             deltaXkm = zeros(6,1); % reset, aber alle Zustände nicht nur die der Lage
             
            % Compute attitude matrix
-            Akm = quatToAtt(qkm); % body to earth rotation
+            Akm = quatToAtt(qkm); % earth to body
             
             %% Correction (measurement update)
             % warum ist measurement update vor dem prediction?
-            for i = 1:1:2 % wieso zwei stufen?
+            for i = 1:1:2 % wieso zwei stufen? Weil einmal magnetometer und einmal accelerometer genutzt wird
                 if i == 1
                     % Reference direction of Earth's gravitational field
                     r_acc = [ 0  ;
